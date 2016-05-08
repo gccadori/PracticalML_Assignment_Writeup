@@ -1,0 +1,119 @@
+---
+title: "Predicting Weight Lifting Performance"
+author: "Guilherme Cadori"
+date: "May 7, 2016"
+output: html_document
+---
+
+# Introduction
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+
+#Data
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har
+
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
+# Data preparation
+All data in this study was prepared and analysed using the Caret package.
+
+    Library(caret)
+
+The dataset utilized in this study was downloaded from the links provided above and were saved on the author's work directory. The training set was loaded by the code below.
+
+    data <- read.csv("pml-training.csv", na.strings=c("NA",""), strip.white=TRUE)
+
+Afterwards, this training set was cleaned by removing NA values contained in the original dataset. 
+
+    qt_NA <- apply(data, 2, function(x) { sum(is.na(x)) }) 
+        
+    final_data <- subset(data[, which(qt_NA == 0)], 
+                                      select=-c(X, user_name, new_window, num_window, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp))
+   
+    
+# Partitioning Data and Cross Validation
+
+The organized dataset was then paritioned into "training" and "testing" sets in order to model our data and assess model performance. 
+The training set was composed by 65% of the data, whilst the testing set comprised the remaining 35%.
+In order to assess the out of sample error, model accuracy metrics were evaluted on the testing set and after cross validation method was described.
+
+    inTrain <- createDataPartition(final_data$classe, 
+                                   p=0.65, list=FALSE)
+    training <- final_data[inTrain,]
+    testing <- final_data[-inTrain,] 
+                                      
+    ctrl <- trainControl(allowParallel=TRUE, method="cv", number=4)
+    
+
+#Data Modeling
+# Random Forest Algorithm
+The foremost objective of this study was to model the "Classe" variable, which represents how correctly weight lifting exercises were performed, and to predict future executions of the same exercises. Thus, a prediction model was built using the Random Forest algorithm and its performance was assessed.
+
+First, modeling data:
+
+    set.seed(34000)
+    model <- train(classe ~ ., data=training, model="rf", trControl=ctrl) 
+                                      
+    test_data <- read.csv("pml-testing.csv", na.strings=c("NA",""), strip.white=TRUE)
+    used_test_data <- subset(test_data[, which(qt_NA == 0)], 
+                             select=-c(X, user_name, new_window, num_window, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp)) 
+                                      
+    predictions <- predict(model, newdata=testing)
+    
+Secondly, assessing model accuracy and the out-of-sample error:
+
+    CM <- confusionMatrix(predictions, testing$classe)
+    CM
+
+Model assessment outputs:
+
+    ## Confusion Matrix and Statistics
+    ## 
+    ##           Reference
+    ## Prediction    A    B    C    D    E
+    ##          A 2232    0    0    0    0
+    ##          B    0 1516    2    0    0
+    ##          C    0    2 1366    1    0
+    ##          D    0    0    0 1285    0
+    ##          E    0    0    0    0 1442
+    ## 
+    ## Overall Statistics
+    ##                                           
+    ##                Accuracy : 0.9994          
+    ##                  95% CI : (0.9985, 0.9998)
+    ##     No Information Rate : 0.2845          
+    ##     P-Value [Acc > NIR] : < 2.2e-16       
+    ##                                           
+    ##                   Kappa : 0.9992          
+    ##  Mcnemar's Test P-Value : NA              
+    ## 
+    ## Statistics by Class:
+    ## 
+    ##                      Class: A Class: B Class: C Class: D Class: E
+    ## Sensitivity            1.0000   0.9987   0.9985   0.9992   1.0000
+    ## Specificity            1.0000   0.9997   0.9995   1.0000   1.0000
+    ## Pos Pred Value         1.0000   0.9987   0.9978   1.0000   1.0000
+    ## Neg Pred Value         1.0000   0.9997   0.9997   0.9998   1.0000
+    ## Prevalence             0.2845   0.1935   0.1744   0.1639   0.1838
+    ## Detection Rate         0.2845   0.1932   0.1741   0.1638   0.1838
+    ## Detection Prevalence   0.2845   0.1935   0.1745   0.1638   0.1838
+    ## Balanced Accuracy      1.0000   0.9992   0.9990   0.9996   1.0000
+
+
+
+# Predicting Future Weight Lifitting Performance
+To conclude, our resulting model was subject to 20 new observations from the test set, and weight lifting performance was predicted.
+
+    predictions
+
+Weight lifting performance predictions:
+
+    ## [1] B A B A A E D B A A B C B A E E A B B B 
+    ## Levels: A B C D E
